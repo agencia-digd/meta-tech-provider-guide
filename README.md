@@ -1,211 +1,317 @@
 # Como virar Meta Tech Provider e conseguir Advanced Access
 
-> Guia prático de quem passou pelo processo inteiro — do zero até **15 permissões
-> em Acesso Avançado** num app que opera WhatsApp Business, Instagram e Ads em
-> nome de **múltiplos clientes** (SaaS multi-tenant).
+> Guia em PT-BR para quem vai operar ativos de outras empresas com WhatsApp
+> Cloud API, Instagram e Ads. Original de 25/06/2026; revisão documental em
+> **24/09/2026**. Relatos não confirmados estão identificados no fim.
 >
-> Escrito em português, sem enrolação, com os **gotchas que custam dias** se
-> ninguém te avisar.
+> A aprovação depende do caso de uso e da análise da Meta. O objetivo aqui é
+> preparar uma submissão que outra pessoa consiga reproduzir e avaliar.
 
-🎥 **Vídeo acompanhando este guia:** https://youtu.be/fRy7fpq0NzA
+🎥 [Vídeo do relato original](https://youtu.be/fRy7fpq0NzA)
 
----
+## Entenda o que precisa ser aprovado
 
-## Pra quem é isso
+Standard Access não significa acesso irrestrito a qualquer ativo próprio:
+existem requisitos de papel no app, autorização e acesso ao ativo. Para atender
+outras empresas, peça Advanced Access nas permissões necessárias ao produto.
+Testes com administradores/desenvolvedores não comprovam acesso de clientes.
+Fontes: [níveis de acesso][access-levels] e [App Review][app-review].
 
-Você está construindo um produto que precisa, **em nome de outras empresas**:
-
-- enviar/ler mensagens de WhatsApp Business (Cloud API)
-- publicar / ler comentários / responder DM no Instagram
-- criar e gerenciar campanhas de Ads e puxar leads de Lead Ads
-
-Enquanto você só mexe nos **seus próprios** ativos (sua Página, seu Instagram,
-sua conta de anúncio), o **Standard Access** já basta e tudo funciona em modo
-dev. No momento em que você quer operar o ativo **de um cliente**, a Meta exige
-que você seja um **Provedor de Tecnologia (Tech Provider)** com **Advanced
-Access** nas permissões. É esse pulo que este guia cobre.
-
----
-
-## O mapa mental (leia antes de começar)
-
-São **três portões independentes**. Gente trava porque confunde os três:
-
-| Portão | O que é | Libera o quê |
+| Processo | O que comprova | Como conferir |
 |---|---|---|
-| **1. App Review** | Análise das permissões do seu app, com screencast demonstrando cada uma | Standard → Advanced em cada permissão |
-| **2. Business Verification** | Verificação da sua empresa (documento, endereço) | Pré-requisito do portão 3 |
-| **3. Access Verification** (Data Protection / Tech Provider) | Questionário de proteção de dados + atestar que você é provedor de tecnologia | "Destrava" o Advanced pra operar ativos de **terceiros** |
+| **Business Verification** | Identidade da empresa vinculada ao app | Empresa verificada no portfólio empresarial (antigo BM) correto |
+| **App Review / Advanced Access** | Uso permitido de cada permissão ou recurso | Aprovação e nível de acesso de cada item no painel |
+| **Access Verification** | Que a empresa atua como Tech Provider ao acessar dados de outras empresas | Resultado na seção de verificações do app |
+| **Data Protection Assessment (DPA)** | Práticas de tratamento e proteção de dados, quando exigido | Avisos e avaliação próprios no painel |
 
-⚠️ **App Review aprovado NÃO significa Advanced ativo.** Quando você submete, as
-permissões entram em fila como **"Standard — Análise do app pendente"**. Só
-viram **Advanced** depois que os **três** portões fecham. Muita gente acha que
-"foi aprovado" e na real só entrou na fila.
+**Access Verification é independente de App Review e dos níveis de acesso.**
+A lista oficial inclui `whatsapp_business_management` e várias permissões de
+Ads, Pages e Instagram. Não é correto dizer que três aprovações sempre mudam
+juntas o rótulo Standard para Advanced. DPA também não é sinônimo de Access
+Verification. [Access Verification][access-verification] · [DPA][dpa].
 
----
+## 1. Prepare o app e a empresa
 
-## Passo a passo
+1. Crie um app com o **caso de uso WhatsApp** e vincule o portfólio da empresa
+   que prestará o serviço. No painel atual: **Use cases → Customize → WhatsApp
+   → Tech Provider onboarding**. Os nomes podem variar com o idioma e o app.
+2. Faça **Business Verification antes de submeter o App Review de WhatsApp**.
+   Um administrador da empresa confirma os dados cadastrais e o vínculo com a
+   empresa; documentos podem ser solicitados. Confira se o app está conectado
+   à empresa efetivamente verificada, não a outro portfólio seu.
+3. Preencha as configurações básicas: ícone, categoria, finalidade para
+   clientes, contato monitorado, política de privacidade, termos e instruções
+   ou mecanismo de exclusão de dados. Os links precisam funcionar.
+4. Quando solicitado, complete **Access Verification** em **Settings / Basics
+   → Verifications → Access verification**. Descreva o serviço e o uso dos
+   dados de outras empresas. A empresa precisa estar verificada e sem
+   restrições. Responda às perguntas de tratamento de dados e ao DPA quando
+   aparecerem; descreva o que o produto realmente faz.
 
-### 0. Estrutura mínima
+Fontes: [onboarding de Tech Provider][tech-provider], [Business Verification][business-verification],
+[configurações básicas][basic-settings] e [Access Verification][access-verification].
 
-- Um **App** do tipo Business no [developers.facebook.com](https://developers.facebook.com).
-- Um **Business Manager (BM)** com o app vinculado.
-- Um **System User** na BM, com token que carregue **todos os escopos** que você
-  vai submeter. Esse token **não expira** e é o que você usa na demo.
+## 2. Faça o produto funcionar antes de gravar
 
-> 🔑 **Por que System User:** o screencast do App Review precisa mostrar o token
-> **do próprio app** fazendo cada chamada. Se você demonstrar usando uma
-> integração de terceiro (Kommo, uChat, etc.), **não conta** — eles usam o app
-> deles, não o seu.
+Construa um fluxo reproduzível, com ambiente acessível ao revisor e instruções
+passo a passo. Use dados fictícios e recursos de teste nas demonstrações.
+Não coloque dados de clientes, credenciais pessoais, tokens ou identificadores
+reais neste repositório ou em material público.
 
-### 1. Verificações primeiro (portões 2 e 3)
+- Para WhatsApp, comece pelos recursos de teste da Cloud API e pelo painel
+  **API Setup**. O sandbox de Embedded Signup é diferente: ele testa o cadastro,
+  mas seu número não envia nem recebe mensagens.
+- Faça **ao menos uma chamada bem-sucedida por permissão nos 30 dias anteriores
+  à submissão**, conforme o tutorial geral de App Review.
+- Escolha o token conforme o fluxo. Para ativos próprios de WhatsApp, a Meta
+  orienta System User; para clientes de Tech Provider, **Business Integration
+  System User (BISU)**, obtido pelo Embedded Signup. O token temporário do painel
+  serve para começar os testes. A geração de System User permite escolher a
+  expiração: não assuma que todo token “não expira”.
+- Além dos escopos, confira o acesso do usuário ao ativo. Token com permissão
+  não substitui a concessão de acesso à WABA.
+- Oculte tokens, cabeçalhos de autorização, segredos, PINs e dados pessoais
+  durante a gravação. Remover apenas `access_token` do JSON não basta; revise
+  também terminal, URLs, paginação, notificações e logs.
 
-No painel da BM → **Configurações → Central de Segurança**:
+Fontes: [tutorial de submissão][submission], [Cloud API][cloud],
+[tokens][tokens] e [Embedded Signup][embedded].
 
-1. **Business Verification** — sobe documento da empresa. Pode levar dias.
-2. **Verifique também o domínio** do seu produto.
-3. **Access Verification / Data Protection Assessment** — questionário sobre como
-   você trata dados de usuário. É o que normalmente segura o status de Tech
-   Provider. Responda com calma.
+## 3. Monte o pacote de App Review
 
-> 🪤 **Gotcha:** verificação feita na **BM errada** não vale. Se você tem várias
-> BMs (principal + backup), garanta que empresa **e** domínio estão verificados
-> na **mesma BM que é dona do app**. Domínio verificado numa BM "backup" não
-> destrava o app da BM principal.
+Peça **somente permissões usadas pelo produto**. Você pode enviar permissões
+juntas ou separadamente; não precisa reunir WhatsApp, Instagram e Ads para
+começar. Para WhatsApp, não é necessário esperar o Embedded Signup inteiro
+ficar pronto para iniciar a análise. [App Review de WhatsApp][wa-review].
 
-### 2. Prepare a demonstração (portão 1)
+Para cada permissão, prepare:
 
-A Meta quer um **screencast** mostrando cada permissão sendo usada de verdade,
-**com o token do seu app**, numa conta real (pode ser a sua própria, ou a de um
-cliente piloto que te deu acesso aos ativos).
+- **Descrição própria:** funcionalidade, benefício para o cliente, dados
+  acessados e por que essa permissão é necessária.
+- **Vídeo próprio:** início do fluxo, autorização quando aplicável, ação no
+  produto e resultado visível. O guia de WhatsApp exige clipes separados por
+  permissão; um vídeo misturando casos de uso pode ser rejeitado.
+- **Instruções para teste:** URL, sequência de telas, dados fictícios e forma
+  de acesso ao ambiente. Se houver login próprio, explique como o revisor
+  entra. Não forneça credenciais da sua conta pessoal da Meta.
 
-A estratégia que funciona: **um app só, uma submissão consolidada**, com todas as
-permissões demonstradas na mesma conta real. Pra cada permissão, um scriptzinho
-que faz a chamada e imprime a resposta limpa na tela.
+Prefira interface em inglês quando possível; caso contrário, inclua legendas
+explicativas. Não dependa de áudio: o tutorial informa que os revisores não o
+escutam. Um script mostrando JSON não substitui automaticamente a demonstração
+do fluxo do produto. [Tutorial geral][submission].
 
-**Dica de ouro:** faça um **"sanitizer"** no output dos seus scripts de demo que
-**remove `access_token`, paging e qualquer dado sensível** antes de imprimir — o
-vídeo vai pra Meta, não dá pra vazar token na gravação.
+### WhatsApp: as duas demonstrações essenciais
 
-#### Roteiro de demo por família de permissão
+| Permissão | O que demonstrar |
+|---|---|
+| `whatsapp_business_messaging` | Criar/enviar uma mensagem e mostrar seu recebimento no WhatsApp web ou móvel |
+| `whatsapp_business_management` | Criar um template pelo app ou pelo WhatsApp Manager |
 
-- **WhatsApp** (`whatsapp_business_messaging`, `whatsapp_business_management`):
-  registrar o número, enviar um template, mostrar a entrega real.
-- **Instagram** (`instagram_content_publish`, `instagram_manage_comments`,
-  `instagram_manage_messages`, `instagram_manage_contents`,
-  `instagram_manage_insights`, `instagram_basic`): publicar um post, comentar e
-  responder, ler/responder DM, puxar insight (reach), apagar conteúdo.
-- **Ads** (`ads_management`, `ads_read`): listar contas, **criar → editar (ativar)
-  → pausar** uma campanha (sem ad set ela não gasta nada), e mostrar relatório.
-- **Leads** (`leads_retrieval`): puxar o lead mais recente de um formulário de
-  Lead Ads (use o **Lead Ads Testing Tool** pra gerar lead de teste sem PII real).
-- **Pages** (`pages_show_list`, `pages_read_engagement`, `pages_messaging`,
-  `pages_manage_metadata`): listar páginas, ler engajamento, etc.
+A Meta permite demonstrar o envio com o cURL do **API Setup** e a criação de
+modelo pelo **WhatsApp Manager**. No fluxo com Solution Partner, a documentação
+também aceita demonstração da integração com o parceiro. Portanto, a proibição
+genérica de “integração de terceiro não conta” estava incorreta. Essas alternativas
+são documentadas para WhatsApp; não as generalize para outros produtos.
+Fontes: [Tech Provider][tech-provider] e [App Review de WhatsApp][wa-review].
 
-### 3. Submeta e aguarde
+### Instagram, Ads, Leads e Pages
 
-Submetido = fila. O ciclo costuma levar **~5 dias úteis**. Enquanto isso, as
-permissões aparecem como **Standard / Análise pendente**, mas seus demos **já
-rodam** porque Standard Access cobre os **seus próprios ativos**.
+Use o mesmo princípio: cada permissão precisa de uma ação observável, e a
+referência do endpoint define os escopos e tokens. Exemplos de roteiro:
+publicar/responder comentário no Instagram; demonstrar gestão e relatório em
+Ads; recuperar um lead de teste; listar páginas ou consultar seus insights.
+Mantenha campanhas de demonstração pausadas e dados de leads fictícios.
 
-### 4. Resultado
+**Escolha primeiro o login do Instagram.** O fluxo com Instagram Login usa
+permissões como `instagram_business_basic` e
+`instagram_business_manage_messages`, além de Instagram User access token.
+Não copie cegamente os escopos ou a regra “DM sempre exige Page Token” do fluxo
+antigo. [Mensagens com Instagram Login][ig-messages].
 
-Quando fecha, no painel **Permissões e Recursos** cada permissão operacional
-aparece como **"Acesso avançado — Acesso avançado concedido"**. É isso que
-libera operar ativos de **outras empresas**. No nosso caso fecharam **15**:
+**`read_insights` não deve ser descartada como deprecada.** A referência atual de
+Page Insights ainda exige `read_insights` e `pages_read_engagement`, com Page
+access token e tarefa `ANALYZE`. Insights do Instagram não substituem os de
+Página. [Referência de Insights][insights]. Para Leads, confira também o acesso
+no Leads Access Manager e os requisitos da operação desejada: a documentação
+aceita Page ou User access token em cenários de recuperação de leads.
+[Recuperação de leads][leads].
 
-```
-pages_manage_metadata      instagram_manage_comments    ads_management
-pages_messaging            instagram_manage_messages    ads_read
-pages_show_list            instagram_manage_contents    leads_retrieval
-pages_read_engagement      instagram_content_publish    whatsapp_business_messaging
-instagram_basic            instagram_manage_insights    whatsapp_business_management
-```
+## 4. Submeta, acompanhe e corrija a causa da rejeição
 
----
+Clique em **Submit for Review**: um rascunho não entra na fila. Confira o status
+individual das permissões; submissão recebida não é aprovação.
 
-## Os gotchas que custaram tempo (a parte que vale ouro)
+Motivos de rejeição documentados pela Meta:
 
-### WhatsApp: erro `131037` "display name needs approval"
-Trava **todo** envio de template, independente de qualquer outra config. Se você
-está num **número de teste** cujo nome de exibição foi **DECLINED**, **não há
-conserto** — número de teste não deixa reeditar o display name (nem painel nem
-API). **Solução:** use o número de teste **auto-provisionado** do app (aba
-"Configuração da API" / "API Setup"), cujo `verified_name = Test Number` e
-`name_status = APPROVED`. Pegue o **Phone Number ID** dali.
+- Permissão desnecessária ou uso fora da finalidade permitida.
+- App inacessível, instruções insuficientes ou funcionalidade impossível de testar.
+- Falta de descrição ou vídeo para determinada permissão.
+- Screenshot no lugar do vídeo; no WhatsApp, vídeo misturando permissões/casos de uso.
 
-### WhatsApp: `133010` "Account not registered"
-Antes do **primeiro** envio, registre o número:
-```
-POST /{phone_number_id}/register
-{ "messaging_product": "whatsapp", "pin": "123456" }
-```
+Ao receber uma rejeição, leia o motivo daquele item, reproduza o teste como um
+usuário novo, corrija o bloqueio e reenvie a evidência correspondente. Se o
+produto realmente precisa da permissão, a rejeição impede esse uso em clientes;
+não suponha que Standard ou outra permissão “moderna” resolva.
+Fontes: [App Review][app-review], [tutorial][submission] e [WhatsApp][wa-review].
 
-### WhatsApp: `131030` destinatário não permitido
-Número de teste só entrega pra destinatários na **allow-list**. Adicione o número
-no painel → confirme o código → check verde.
+### Prazo: separe as etapas
 
-### Instagram DM: precisa de Tester
-`instagram_manage_messages` em modo dev só troca mensagem com quem tem **papel no
-app** (Instagram Tester). Com qualquer outra conta dá **Timeout / erro #-2 /
-2534084**. Adicione a conta-alvo como Instagram Tester e aceite o convite. (É
-justamente isso que o **Advanced Access** remove na produção.)
+| Etapa | O que a documentação consultada informa |
+|---|---|
+| Business Verification | Não foi confirmado prazo numérico nesta revisão; acompanhe o painel e eventuais pedidos de documentos |
+| App Review de WhatsApp | Média de aproximadamente **24 horas** na página específica |
+| App Review geral | Tutorial orienta esperar uma decisão **dentro de uma semana** |
+| Access Verification | Decisão em aproximadamente **5 dias**, sem dizer “úteis” |
 
-### Token errado pra DM e Lead Forms
-Endpoints de **DM do Instagram** e de **leadgen_forms** exigem **Page Token**, não
-o token de System User. Resolva via `GET /me/accounts` e use o token da página.
+São referências de etapas diferentes, **não um SLA nem prazo total garantido**.
+O relato original de “~5 dias úteis” não serve como promessa para o processo
+inteiro. Reserve margem para documentos, correções e nova análise; não foi
+confirmada uma média real de ponta a ponta. Fontes: [WhatsApp][wa-review],
+[tutorial geral][submission] e [Access Verification][access-verification].
 
-### Timeout intermitente na API de conversas
-A chamada de `conversations` do IG às vezes dá **TimeoutError**. Coloque um
-**timeout de ~60s com 1 retry** nos seus scripts de demo, senão a gravação mostra
-um traceback feio na hora errada.
+## 5. Termine o onboarding e valide com um cliente
 
-### App Review ≠ Advanced
-(repetindo porque é o erro nº1) submeter coloca na fila em **Standard**. Advanced
-só vem depois dos três portões. Não comemore na submissão.
+Advanced Access não faz o cadastro do cliente sozinho. Depois das aprovações:
 
----
+1. Confira as permissões concedidas, as verificações e as pendências do painel.
+   Passe para **Live**, quando aplicável, depois do App Review.
+2. Implemente **Embedded Signup com Facebook Login for Business**. Use o fluxo
+   atual **v4**: a documentação anuncia o fim do v2 em **15/10/2026**. Siga a
+   configuração oficial; a versão do Embedded Signup é distinta da Graph API.
+3. No servidor, troque o código retornado pelo fluxo pelo token BISU do cliente.
+   Guarde o vínculo entre cliente, WABA e número; mantenha tokens fora do frontend.
+4. Configure o webhook do app e assine a WABA do cliente com
+   `POST /<WABA_ID>/subscribed_apps`. No fluxo padrão, registre o número
+   verificado com `POST /<PHONE_NUMBER_ID>/register` e o PIN de verificação em
+   duas etapas. Para número já usado no WhatsApp Business app, siga o fluxo
+   específico de coexistência indicado na documentação de Tech Provider.
+5. Oriente o cliente a adicionar a forma de pagamento à WABA. No modelo de
+   Tech Provider, isso faz parte da conclusão do onboarding.
+6. Como validação prática, teste com um usuário autorizado **sem papel no app**:
+   onboarding, envio, recebimento e eventos de entrega. Não trate apenas o
+   sucesso da requisição de envio como confirmação de entrega.
 
-## Permissões que podem ser **rejeitadas** sem te atrapalhar
+Fontes: [Embedded Signup][embedded], [versões][es-versions],
+[onboarding de clientes][onboarding], [registro][registration] e [Tech Provider][tech-provider].
+Acompanhe depois os avisos de DPA e Data Use Checkup; aprovação inicial não
+encerra as obrigações de manutenção de acesso. [DPA][dpa] · [Níveis de acesso][access-levels].
 
-Algumas permissões **legadas ou redundantes** podem voltar como **"Análise do app
-rejeitada"** — e **tudo bem**, porque:
+## Preços e categorias de template
 
-1. a rejeição é só pro **Advanced**; elas continuam **ativas em Standard** (seus
-   próprios ativos);
-2. provavelmente existe uma permissão **moderna** que cobre o caso de uso.
+Desde **01/07/2025**, a cobrança de mensagens da Meta é por **template entregue**,
+considerando categoria e mercado do destinatário. Em 24/09/2026, a página oficial
+identifica a tabela vigente como **01/07/2026** e anuncia mudanças para
+**01/10/2026**. Consulte a tabela aplicável à moeda da WABA antes de orçar;
+este guia não fixa valores por mensagem. [Preços oficiais][pricing].
 
-Exemplos clássicos:
+- A mensagem do usuário abre ou renova a janela de atendimento de **24 horas**.
+  Mensagens livres só podem ser enviadas nessa janela e são gratuitas pela Meta.
+- Templates **utility** entregues dentro da janela também são gratuitos.
+  Fora dela, são cobrados. Marketing e authentication são cobrados, salvo
+  exceções como a janela gratuita de entrada elegível.
+- Há descontos por volume para utility/authentication. A janela gratuita de
+  **72 horas** exige entrada por anúncio Click-to-WhatsApp ou botão de Página
+  no WhatsApp móvel e resposta da empresa em até 24 horas. Começa nessa
+  resposta; se a janela de atendimento fechar, só templates podem ser enviados.
 
-- **`read_insights`** — Page Insights legada (deprecada). Coberta por
-  `instagram_manage_insights` + `pages_read_engagement`. **Não vale ressubmeter.**
-- **`pages_read_user_content`** — ler conteúdo de **terceiros** no mural de uma
-  Página do Facebook. Se você só lê comentário de **Instagram**, use
-  `instagram_manage_comments` e ignore esta.
+| Categoria | Como classificar |
+|---|---|
+| **Marketing** | Promoção, oferta, retomada comercial; conteúdo misto de serviço e promoção também entra aqui |
+| **Utility** | Sem promoção, ligado a pedido/ação específica do usuário ou informação essencial/crítica conforme os critérios da Meta |
+| **Authentication** | Verificação de identidade com código de uso único, usando os formatos próprios de autenticação |
 
-👉 Antes de brigar por uma permissão rejeitada, pergunte: **"meu produto
-realmente usa isso, ou tem uma permissão moderna que já cobre?"**
+A Meta pode aprovar um template solicitado como utility na categoria marketing
+e reclassificar templates depois. Monitore categoria e status; a cobrança segue
+a categoria aplicada no uso. Aprovar um template é um processo diferente de
+aprovar o app. [Categorização oficial][categories].
 
----
+Essas são as regras gerais. A Meta publica uma [política específica para
+AI Providers][ai-pricing], que pode cobrar mensagens livres em mercados
+aplicáveis; não estenda a gratuidade geral a esse caso.
+
+**Brasil:** desde **01/07/2026**, clientes elegíveis com país *Sold-To* Brasil no
+Billing Hub só podem criar novas WABAs em BRL. A Meta orienta migrar as WABAs
+existentes desses clientes até **30/06/2027**, com interrupção de entrega nas
+não migradas a partir de **01/07/2027**. Confira a elegibilidade na seção
+*Billing localization launches*; não é uma regra baseada no país do destinatário.
+[Preços e localização de cobrança][pricing].
+
+## Erros e relatos do guia original
+
+**WhatsApp `131037`:** a referência atual relaciona o erro a número empresarial
+**555** sem nome de exibição aprovado e orienta alterar o nome. A afirmação antiga
+“não há conserto” foi corrigida. Não confunda esse número com o recurso de teste
+autoprovisionado do app. [Erros][errors] · [Embedded Signup][embedded].
+
+**WhatsApp `133010`:** número não registrado. Confira a adição/verificação do
+número e faça o registro pela API; o PIN é o de verificação em duas etapas, não
+um valor fixo para copiar do guia. [Erros][errors] · [Registro][registration].
+
+Os pontos abaixo ficam preservados como **relatos não confirmados em 24/09/2026**,
+sem transformá-los em requisitos universais. Detalhes em [REVISAO-ASTRA.md](REVISAO-ASTRA.md).
+
+- Domínio: o original orienta “verifique também o domínio” na mesma BM dona do
+  app e diz que verificar na BM de backup não destrava o app principal.
+- WhatsApp `131030`: o original orienta adicionar o destinatário de teste à
+  allow-list no painel, confirmar o código e conferir o check verde.
+- Instagram DM em modo dev: o original associa Timeout / `#-2` / `2534084` à
+  ausência de Instagram Tester, orientando adicionar a conta e aceitar o convite.
+- `pages_read_user_content`: o original a descreve como leitura de conteúdo
+  de terceiros no mural da Página e recomenda não solicitá-la para comentários
+  exclusivamente de Instagram; a referência específica não ficou acessível.
+- `leadgen_forms`: o original orienta Page Token obtido por `GET /me/accounts`,
+  em vez de System User. Não foi confirmada aqui a exigência exclusiva desse
+  token para esse endpoint.
+- Timeout de `conversations` do Instagram: o original sugere ~60 segundos com
+  uma repetição nos scripts de demo; é ajuste empírico, não prazo oficial.
+- O relato de **15 permissões aprovadas** não foi auditado em um app real. A
+  lista histórica era: `pages_manage_metadata`, `pages_messaging`,
+  `pages_show_list`, `pages_read_engagement`, `instagram_basic`,
+  `instagram_manage_comments`, `instagram_manage_messages`,
+  `instagram_manage_contents`, `instagram_content_publish`,
+  `instagram_manage_insights`, `ads_management`, `ads_read`, `leads_retrieval`,
+  `whatsapp_business_messaging` e `whatsapp_business_management`. Não use como
+  lista obrigatória; a disponibilidade de `instagram_manage_contents` não foi
+  confirmada nesta revisão.
 
 ## Checklist final
 
-- [ ] App Business criado + vinculado à BM dona
-- [ ] System User com token (não-expira) carregando todos os escopos
-- [ ] Business Verification ✅ na **BM correta**
-- [ ] Domínio verificado na **mesma BM**
-- [ ] Access Verification / Data Protection respondido
-- [ ] Scripts de demo com **sanitizer** de token no output
-- [ ] Número de teste WhatsApp com `name_status = APPROVED` + registrado + allow-list
-- [ ] Conta IG-alvo adicionada como **Instagram Tester**
-- [ ] Screencast cobrindo **cada** permissão com o token **do app**
-- [ ] Submetido → aguardar ~5 dias úteis
-- [ ] Conferir painel: permissões em **"Acesso avançado concedido"**
+- [ ] App vinculado à empresa correta e Business Verification concluída.
+- [ ] Configurações, privacidade, termos e exclusão de dados acessíveis.
+- [ ] Permissões limitadas ao produto; chamadas de teste recentes bem-sucedidas.
+- [ ] Vídeo e justificativa por permissão; ambiente reproduzível pelo revisor.
+- [ ] Gravações e logs sem segredos ou dados de clientes.
+- [ ] Submissão enviada, não apenas salva como rascunho.
+- [ ] Advanced Access e Access Verification conferidos separadamente; demais avaliações atendidas quando exigidas.
+- [ ] Embedded Signup atual, token por cliente, registro, webhooks e pagamento configurados.
+- [ ] Fluxo validado com usuário autorizado sem papel no app.
+- [ ] Categorias e tabela de preços vigentes conferidas antes de oferecer o serviço.
 
----
+## Compartilhamento
 
-## Licença
+Compartilhe à vontade. Feito para economizar tempo de quem vem depois.
+O vídeo registra a experiência original; as orientações revisadas e suas fontes
+estão neste texto e em [REVISAO-ASTRA.md](REVISAO-ASTRA.md).
 
-Compartilhe à vontade. Feito pra economizar dias de cabeça de quem vem depois.
-
-🎥 https://youtu.be/fRy7fpq0NzA
+[tech-provider]: https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers
+[app-review]: https://developers.facebook.com/documentation/resp-plat-initiatives/individual-processes/app-review
+[wa-review]: https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/app-review
+[business-verification]: https://developers.facebook.com/documentation/development/release/business-verification
+[access-verification]: https://developers.facebook.com/documentation/development/release/access-verification
+[access-levels]: https://developers.facebook.com/docs/graph-api/overview/access-levels/
+[dpa]: https://developers.facebook.com/documentation/resp-plat-initiatives/individual-processes/data-protection-assessment
+[basic-settings]: https://developers.facebook.com/documentation/development/create-an-app/app-dashboard/basic-settings
+[submission]: https://developers.facebook.com/documentation/resp-plat-initiatives/individual-processes/app-review/submission-guide
+[cloud]: https://developers.facebook.com/documentation/business-messaging/whatsapp/about-the-platform
+[tokens]: https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens
+[embedded]: https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/overview
+[es-versions]: https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/versions
+[onboarding]: https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-customers-as-a-tech-provider
+[registration]: https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/registration
+[pricing]: https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing
+[categories]: https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/template-categorization
+[errors]: https://developers.facebook.com/documentation/business-messaging/whatsapp/support/error-codes
+[ig-messages]: https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/messaging-api
+[insights]: https://developers.facebook.com/docs/graph-api/reference/insights/
+[leads]: https://developers.facebook.com/documentation/ads-commerce/marketing-api/guides/lead-ads/retrieving
+[ai-pricing]: https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/ai-providers
